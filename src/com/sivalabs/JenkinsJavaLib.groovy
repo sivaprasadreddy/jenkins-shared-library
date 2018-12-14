@@ -15,6 +15,12 @@ class JenkinsJavaLib {
         this.currentBuild = currentBuild
     }
 
+    def checkout() {
+        steps.stage("Checkout") {
+            steps.checkout scm
+        }
+    }
+    
     def runMavenTests() {
         steps.stage("Test") {
             try {
