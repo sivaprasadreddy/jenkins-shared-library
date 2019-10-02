@@ -1,0 +1,17 @@
+#!groovy
+@Library('jenkins-java-shared-library')
+import com.sivalabs.JenkinsSharedLib
+
+def utils = new JenkinsSharedLib(this, env, scm, currentBuild)
+
+node {
+
+    try {
+        utils.checkout()
+        utils.runMavenTests()
+    }
+    catch(err) {
+        echo "ERROR: ${err}"
+        currentBuild.result = currentBuild.result ?: "FAILURE"
+    }
+}

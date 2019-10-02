@@ -1,6 +1,6 @@
 package com.sivalabs
 
-class JenkinsSharedLib {
+class JenkinsSharedLib implements Serializable {
 
     // pipeline global properties
     def steps

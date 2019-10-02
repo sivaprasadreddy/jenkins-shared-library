@@ -1,0 +1,26 @@
+#!groovy
+@Library('jenkins-java-shared-library')
+import com.sivalabs.JenkinsJavaLib
+
+def utils = new JenkinsJavaLib(this, env, scm, currentBuild)
+
+pipeline {
+    agent any
+
+    stages {
+        stage("Checkout") {
+            steps {
+                script {
+                    utils.checkout()
+                }
+            }
+        }
+        stage("Test") {
+            steps {
+                script {
+                    utils.runMavenTests()
+                }
+            }
+        }
+    }
+}
