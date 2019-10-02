@@ -68,8 +68,8 @@ class JenkinsSharedLib implements Serializable {
 
                 steps.withCredentials([[$class: 'UsernamePasswordMultiBinding',
                                   credentialsId: 'docker-hub-credentials',
-                                  usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
-                    steps.sh "docker login --username $USERNAME --password $PASSWORD"
+                                  usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD']]) {
+                    steps.sh "docker login --username ${env.DOCKERHUB_USERNAME} --password ${env.DOCKERHUB_PASSWORD}"
                 }
                 steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:latest"
                 steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:${env.BUILD_NUMBER}"
