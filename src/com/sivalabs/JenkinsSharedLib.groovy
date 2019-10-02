@@ -24,7 +24,7 @@ class JenkinsSharedLib implements Serializable {
     }
 
     def init() {
-        steps.echo env
+        steps.echo "${env}"
         def filePath = this.env.WORKSPACE + '/pipeline.json'
         steps.echo "pipeline.json path: ${filePath}"
         def pipelineJson = new File(filePath)
