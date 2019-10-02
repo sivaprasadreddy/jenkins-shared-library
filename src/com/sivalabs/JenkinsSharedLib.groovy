@@ -61,8 +61,18 @@ class JenkinsSharedLib implements Serializable {
 
     def publishDockerImage() {
         steps.stage("Publish Docker Image") {
+            steps.echo "PUBLISH_TO_DOCKERHUB: ${params.PUBLISH_TO_DOCKERHUB}"
             if(params.PUBLISH_TO_DOCKERHUB) {
-                steps.echo "Publish to dockerhub. DOCKER_USERNAME=${env.DOCKER_USERNAME}, APPLICATION_NAME=${env.APPLICATION_NAME}"
+                steps.echo "Publishing to dockerhub. DOCKER_USERNAME=${env.DOCKER_USERNAME}, APPLICATION_NAME=${env.APPLICATION_NAME}"
+                steps.sh "docker build -t ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:${env.BUILD_NUMBER} -t ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:latest ."
+
+                steps.withCredentials([[$class: 'UsernamePasswordMultiBinding',
+                                  credentialsId: 'docker-hub-credentials',
+                                  usernameVariable: 'USERNAME', passwordVariable: 'PASSWORD']]) {
+                    steps.sh "docker login --username $USERNAME --password $PASSWORD"
+                }
+                steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:latest"
+                steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:${env.BUILD_NUMBER}"
             } else {
                 steps.echo "Skipping Publish Docker Image"
             }
