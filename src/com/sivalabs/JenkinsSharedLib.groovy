@@ -1,4 +1,5 @@
 package com.sivalabs
+import groovy.json.JsonSlurper
 
 class JenkinsSharedLib implements Serializable {
 
@@ -9,12 +10,37 @@ class JenkinsSharedLib implements Serializable {
     def scm
     def currentBuild
 
+    //local variables
+    def pipelineSpec
+
     JenkinsSharedLib(steps, env, params, scm, currentBuild) {
         this.steps = steps
         this.env = env
         this.params = params
         this.scm = scm
         this.currentBuild = currentBuild
+
+        this.init()
+    }
+
+    def init() {
+        def pipelineJson = readFile("${pwd()}/pipeline.json")
+        def jsonSlurper = new JsonSlurper()
+        pipelineSpec = jsonSlurper.parseText(pipelineJson)
+    }
+
+    def getEnvSpecValue(String key) {
+        def defEnv = pipelineSpec['environments']['defaultEnvironment'] ?: 'dev'
+        return getEnvSpecValue(defEnv, key)
+    }
+
+    def getEnvSpecValue(String envName, String key) {
+        steps.vecho "envName: ${envName}, key=${key}"
+        def val = pipelineSpec['environments'][envName][key]
+        steps.echo "Actual Value: ${val}"
+        def defVal = pipelineSpec['environments']["default"][key]
+        steps.echo "Default Value: ${defVal}"
+        return val ?: defVal
     }
 
     def checkout() {
@@ -61,6 +87,7 @@ class JenkinsSharedLib implements Serializable {
 
     def publishDockerImage() {
         steps.stage("Publish Docker Image") {
+            steps.echo "From Config:: PUBLISH_TO_DOCKERHUB: ${getEnvSpecValue('publishDockerImage')}"
             steps.echo "PUBLISH_TO_DOCKERHUB: ${params.PUBLISH_TO_DOCKERHUB}"
             if(params.PUBLISH_TO_DOCKERHUB) {
                 steps.echo "Publishing to dockerhub. DOCKER_USERNAME=${env.DOCKER_USERNAME}, APPLICATION_NAME=${env.APPLICATION_NAME}"
