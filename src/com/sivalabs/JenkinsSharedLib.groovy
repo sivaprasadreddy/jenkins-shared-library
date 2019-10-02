@@ -24,7 +24,7 @@ class JenkinsSharedLib implements Serializable {
     }
 
     def init() {
-        def pipelineJson = new File("${env.WORKSPACE}/pipeline.json")
+        def pipelineJson = new File("${WORKSPACE}/pipeline.json")
         def jsonSlurper = new JsonSlurper()
         pipelineSpec = jsonSlurper.parse(pipelineJson)
     }
