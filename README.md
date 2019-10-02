@@ -77,7 +77,7 @@ jsl = library(
     )
 )
 
-def utils = jsl.com.sivalabs.JenkinsSharedLib(this, env, scm, currentBuild)
+def utils = jsl.com.sivalabs.JenkinsSharedLib.new(this, env, scm, currentBuild)
 
 node {
 

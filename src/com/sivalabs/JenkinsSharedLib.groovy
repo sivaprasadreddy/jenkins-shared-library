@@ -28,6 +28,31 @@ class JenkinsSharedLib implements Serializable {
             } finally {
                 steps.junit 'target/surefire-reports/*.xml'
                 steps.junit 'target/failsafe-reports/*.xml'
+                steps.publishHTML(target:[
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target/site/jacoco-aggregate',
+                        reportFiles: 'index.html',
+                        reportName: "Jacoco Report"
+                ])
+            }
+        }
+    }
+
+    def runOWASPChecks() {
+        steps.stage("Test") {
+            try {
+                steps.sh './mvnw dependency-check:check'
+            } finally {
+                steps.publishHTML(target:[
+                        allowMissing: true,
+                        alwaysLinkToLastBuild: true,
+                        keepAll: true,
+                        reportDir: 'target',
+                        reportFiles: 'dependency-check-report.html',
+                        reportName: "OWASP Dependency Check Report"
+                ])
             }
         }
     }
