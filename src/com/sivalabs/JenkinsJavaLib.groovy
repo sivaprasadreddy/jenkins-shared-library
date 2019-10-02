@@ -16,19 +16,15 @@ class JenkinsJavaLib {
     }
 
     def checkout() {
-        steps.stage("Checkout") {
-            steps.checkout scm
-        }
+        steps.checkout scm
     }
     
     def runMavenTests() {
-        steps.stage("Test") {
-            try {
-                steps.sh './mvnw clean verify'
-            } finally {
-                steps.junit 'target/surefire-reports/*.xml'
-                steps.junit 'target/failsafe-reports/*.xml'
-            }
+        try {
+            steps.sh './mvnw clean verify'
+        } finally {
+            steps.junit 'target/surefire-reports/*.xml'
+            steps.junit 'target/failsafe-reports/*.xml'
         }
     }
 }
