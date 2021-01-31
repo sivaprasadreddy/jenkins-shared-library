@@ -1,7 +1,57 @@
-# jenkins-java-shared-library
-jenkins-java-shared-library
+# jenkins-shared-library
 
 ## Usage
+
+### Configure Global Shared Library
+
+* Go to **Manage Jenkins -> Configure System**
+* In **Global Pipeline Libraries** Section
+    * Library Name: jenkins-shared-library
+    * Default version: master
+    * Check "Allow default version to be overridden", "Include @Library changes in job recent changes"
+    * Retrieval method: "Modern SCM"
+    * Source Code Management: Git, Project Repository: "https://github.com/sivaprasadreddy/jenkins-shared-library.git"
+    
+### Scripted Pipeline
+
+**Jenkinsfile**
+
+```groovy
+#!groovy
+@Library('jenkins-shared-library')
+import com.sivalabs.JenkinsMavenLib
+import com.sivalabs.JenkinsGradleLib
+
+def dockerUsername = 'DOCKER_USERNAME'
+def dockerImageName = 'IMAGE_NAME'
+
+def project = new JenkinsMavenLib(this, scm, env, params, currentBuild)
+//def project = new JenkinsGradleLib(this, scm, env, params, currentBuild)
+
+node {
+
+    try {
+        stage("Checkout") {
+            project.checkout()
+        }
+        stage("Build") {
+            project.runTests()
+        }
+        stage("Publish Docker Image") {
+            project.buildSpringBootDockerImage(dockerUsername, dockerImageName)
+            def tags = []
+            if(env.BRANCH_NAME == 'master' || env.BRANCH_NAME == 'main') {
+                tags << "latest"
+            }
+            project.publishDockerImage(dockerUsername, dockerImageName, tags)
+        }
+    }
+    catch(err) {
+        echo "ERROR: ${err}"
+        currentBuild.result = currentBuild.result ?: "FAILURE"
+    }
+}
+```
 
 ### Declarative Pipeline
 
@@ -9,10 +59,12 @@ jenkins-java-shared-library
 
 ```groovy
 #!groovy
-@Library('jenkins-java-shared-library')
-import com.sivalabs.JenkinsJavaLib
+@Library('jenkins-shared-library')
+import com.sivalabs.JenkinsMavenLib
+//import com.sivalabs.JenkinsGradleLib
 
-def utils = new JenkinsJavaLib(this, env, scm, currentBuild)
+def project = new JenkinsMavenLib(this, scm, env, params, currentBuild)
+//def project = new JenkinsGradleLib(this, scm, env, params, currentBuild)
 
 pipeline {
     agent any
@@ -21,41 +73,17 @@ pipeline {
         stage("Checkout") {
             steps {
                 script {
-                    utils.checkout()
+                    project.checkout()
                 }
             }
         }
         stage("Test") {
             steps {
                 script {
-                    utils.runMavenTests()
+                    project.runTests()
                 }
             }
         }
-    }
-}
-```
-
-### Scripted Pipeline
-
-**Jenkinsfile**
-
-```groovy
-#!groovy
-@Library('jenkins-java-shared-library')
-import com.sivalabs.JenkinsSharedLib
-
-def utils = new JenkinsSharedLib(this, env, scm, currentBuild)
-
-node {
-
-    try {
-        utils.checkout()
-        utils.runMavenTests()
-    }
-    catch(err) {
-        echo "ERROR: ${err}"
-        currentBuild.result = currentBuild.result ?: "FAILURE"
     }
 }
 ```
@@ -68,22 +96,26 @@ node {
 #!groovy
 
 jsl = library(
-    identifier: 'jenkins-java-shared-library@master',
+    identifier: 'jenkins-shared-library@master',
     retriever: modernSCM(
         [
             $class: 'GitSCMSource',
-            remote: 'https://github.com/sivaprasadreddy/jenkins-java-shared-library.git'
+            remote: 'https://github.com/sivaprasadreddy/jenkins-shared-library.git'
         ]
     )
 )
 
-def utils = jsl.com.sivalabs.JenkinsSharedLib.new(this, env, scm, currentBuild)
+def project = jsl.com.sivalabs JenkinsMavenLib.new(this, scm, env, params, currentBuild)
 
 node {
 
     try {
-        utils.checkout()
-        utils.runMavenTests()
+        stage("Checkout") {
+            project.checkout()
+        }
+        stage("Build") {
+            project.runTests()
+        }
     }
     catch(err) {
         echo "ERROR: ${err}"

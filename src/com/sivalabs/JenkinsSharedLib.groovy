@@ -1,5 +1,4 @@
 package com.sivalabs
-import groovy.json.JsonSlurper
 
 class JenkinsSharedLib implements Serializable {
 
@@ -10,40 +9,12 @@ class JenkinsSharedLib implements Serializable {
     def scm
     def currentBuild
 
-    //local variables
-    def pipelineSpec
-
     JenkinsSharedLib(steps, env, params, scm, currentBuild) {
         this.steps = steps
         this.env = env
         this.params = params
         this.scm = scm
         this.currentBuild = currentBuild
-
-        this.init()
-    }
-
-    def init() {
-        steps.echo "${env}"
-        def filePath = this.env.WORKSPACE + '/pipeline.json'
-        steps.echo "pipeline.json path: ${filePath}"
-        def pipelineJson = new File(filePath)
-        def jsonSlurper = new JsonSlurper()
-        pipelineSpec = jsonSlurper.parse(pipelineJson)
-    }
-
-    def getEnvSpecValue(String key) {
-        def defEnv = pipelineSpec['environments']['defaultEnvironment'] ?: 'dev'
-        return getEnvSpecValue(defEnv, key)
-    }
-
-    def getEnvSpecValue(String envName, String key) {
-        steps.vecho "envName: ${envName}, key=${key}"
-        def val = pipelineSpec['environments'][envName][key]
-        steps.echo "Actual Value: ${val}"
-        def defVal = pipelineSpec['environments']["default"][key]
-        steps.echo "Default Value: ${defVal}"
-        return val ?: defVal
     }
 
     def checkout() {
@@ -52,8 +23,8 @@ class JenkinsSharedLib implements Serializable {
         }
     }
 
-    def runMavenTests() {
-        steps.stage("Test") {
+    def runMavenTests(stageName = "Test") {
+        steps.stage(stageName) {
             try {
                 steps.sh './mvnw clean verify'
             } finally {
@@ -71,10 +42,33 @@ class JenkinsSharedLib implements Serializable {
         }
     }
 
-    def runOWASPChecks() {
-        steps.stage("OWASP Checks") {
+    def runMavenGatlingTests(stageName = "Performance Test") {
+        steps.echo "RUN_PERF_TESTS: ${params.RUN_PERF_TESTS}"
+        if(params.RUN_PERF_TESTS) {
+            steps.stage(stageName) {
+                try {
+                    steps.sh './mvnw clean gatling:test'
+                } finally {
+                    steps.gatlingArchive()
+                    /*
+                steps.publishHTML(target:[
+                     allowMissing: true,
+                     alwaysLinkToLastBuild: true,
+                     keepAll: true,
+                     reportDir: 'target/gatling/results/',
+                     reportFiles: 'index.html',
+                     reportName: "Gatling Report"
+                ])
+                */
+                }
+            }
+        }
+    }
+
+    def runOWASPChecks(stageName = "OWASP Checks") {
+        steps.stage(stageName) {
             try {
-                steps.sh './mvnw dependency-check:check'
+                steps.sh './mvnw dependency-check:check -Pci'
             } finally {
                 steps.publishHTML(target:[
                         allowMissing: true,
@@ -88,24 +82,47 @@ class JenkinsSharedLib implements Serializable {
         }
     }
 
-    def publishDockerImage() {
-        steps.stage("Publish Docker Image") {
-            steps.echo "From Config:: PUBLISH_TO_DOCKERHUB: ${getEnvSpecValue('publishDockerImage')}"
+    def deployOnHeroku(stageName = "Heroku Deployment") {
+        steps.echo "DEPLOY_ON_HEROKU: ${params.DEPLOY_ON_HEROKU}"
+        if(params.DEPLOY_ON_HEROKU) {
+            steps.stage(stageName) {
+                steps.withCredentials([steps.string(credentialsId: 'HEROKU_API_KEY', variable: 'HEROKU_API_KEY')]) {
+                    steps.sh "HEROKU_API_KEY=\"${env.HEROKU_API_KEY}\" ./mvnw heroku:deploy -P ci"
+                }
+            }
+        }
+    }
+
+    def publishDockerImage(stageName = "Publish Docker Image", dockerUsername, dockerImageName) {
+        steps.stage(stageName) {
             steps.echo "PUBLISH_TO_DOCKERHUB: ${params.PUBLISH_TO_DOCKERHUB}"
             if(params.PUBLISH_TO_DOCKERHUB) {
-                steps.echo "Publishing to dockerhub. DOCKER_USERNAME=${env.DOCKER_USERNAME}, APPLICATION_NAME=${env.APPLICATION_NAME}"
-                steps.sh "docker build -t ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:${env.BUILD_NUMBER} -t ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:latest ."
+                steps.echo "Publishing to dockerhub. DOCKER_USERNAME=${dockerUsername}, APPLICATION_NAME=${dockerImageName}"
+                steps.sh "docker build -t ${dockerUsername}/${dockerImageName}:${env.BUILD_NUMBER} -t ${dockerUsername}/${dockerImageName}:latest ."
 
                 steps.withCredentials([[$class: 'UsernamePasswordMultiBinding',
                                   credentialsId: 'docker-hub-credentials',
                                   usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD']]) {
                     steps.sh "docker login --username ${env.DOCKERHUB_USERNAME} --password ${env.DOCKERHUB_PASSWORD}"
                 }
-                steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:latest"
-                steps.sh "docker push ${env.DOCKER_USERNAME}/${env.APPLICATION_NAME}:${env.BUILD_NUMBER}"
+                steps.sh "docker push ${dockerUsername}/${dockerImageName}:latest"
+                steps.sh "docker push ${dockerUsername}/${dockerImageName}:${env.BUILD_NUMBER}"
             } else {
                 steps.echo "Skipping Publish Docker Image"
             }
+        }
+    }
+
+    def npmBuild(stageName = "NPM Build") {
+        steps.stage(stageName) {
+            steps.sh 'npm install'
+            steps.sh 'npm run build'
+        }
+    }
+
+    def npmTest(stageName = "NPM Test") {
+        steps.stage(stageName) {
+            steps.sh 'npm run test:ci'
         }
     }
 }

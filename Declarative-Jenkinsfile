@@ -1,8 +1,13 @@
 #!groovy
-@Library('jenkins-java-shared-library')
-import com.sivalabs.JenkinsJavaLib
+@Library('jenkins-shared-library')
+import com.sivalabs.JenkinsMavenLib
+import com.sivalabs.JenkinsGradleLib
 
-def utils = new JenkinsJavaLib(this, env, scm, currentBuild)
+def dockerUsername = 'DOCKER_USERNAME'
+def dockerImageName = 'IMAGE_NAME'
+
+def project = new JenkinsMavenLib(this, scm, env, params, currentBuild)
+//def project = new JenkinsGradleLib(this, scm, env, params, currentBuild)
 
 pipeline {
     agent any
@@ -11,14 +16,14 @@ pipeline {
         stage("Checkout") {
             steps {
                 script {
-                    utils.checkout()
+                    project.checkout()
                 }
             }
         }
         stage("Test") {
             steps {
                 script {
-                    utils.runMavenTests()
+                    project.runTests()
                 }
             }
         }
